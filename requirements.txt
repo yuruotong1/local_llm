@@ -1,0 +1,7 @@
+modelscope
+torch
+transformers
+accelerate
+streamlit
+fastapi
+uvicorn
