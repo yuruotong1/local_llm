@@ -1,6 +1,6 @@
 # Local Qwen CPU
 
-一个 **CPU 可跑的独立大模型**：基于 `Qwen/Qwen3-1.7B`，本地启动，对外暴露 OpenAI 兼容的 OpenAPI 接口，也带一个 Streamlit 聊天 UI。
+一个 **CPU 可跑的独立大模型**：基于 `Qwen/Qwen2.5-0.5B-Instruct`，本地启动，对外暴露 OpenAI 兼容的 OpenAPI 接口，也带一个 Gradio 聊天 UI（多轮、固定高度可滚动、流式输出）。
 
 仓库本身不带模型文件，第一次运行或打包时会自动从 ModelScope 下载。
 
@@ -40,13 +40,15 @@ run_ui.bat
 
 地址：`http://localhost:8501`
 
+UI 基于 Gradio `ChatInterface`：消息区固定高度、可滚动，输入框始终钉在底部，支持多轮和流式输出，长对话不再被顶出可视区。
+
 ## 调用示例
 
 ```bash
 curl http://localhost:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "local-qwen3-1.7b-cpu",
+    "model": "local-qwen2.5-0.5b-cpu",
     "messages": [
       {"role": "system", "content": "You are a helpful assistant."},
       {"role": "user", "content": "你好，介绍一下你自己"}
@@ -97,7 +99,7 @@ app/
   api.py            FastAPI 服务，提供 OpenAPI
   model_runtime.py  模型加载与推理
   config.py         公共配置
-ui/chat_app.py      Streamlit UI
+ui/chat_app.py      Gradio UI
 api_server.py       API 启动入口
 launcher.py         打包后 UI 启动入口
 download_model.py   模型下载 / 检查

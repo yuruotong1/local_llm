@@ -43,7 +43,10 @@ python -m PyInstaller ^
   --distpath "%CD%\dist" ^
   --workpath "%WORK_DIR%" ^
   --specpath "%WORK_DIR%" ^
-  --collect-all streamlit ^
+  --collect-all gradio ^
+  --collect-all gradio_client ^
+  --collect-all safehttpx ^
+  --collect-all groovy ^
   --hidden-import=modelscope ^
   --hidden-import=torch ^
   --hidden-import=transformers ^
@@ -59,10 +62,6 @@ copy /Y "download_model.py" "%DIST_DIR%\" >nul
 if errorlevel 1 goto :error
 xcopy "models" "%DIST_DIR%\models\" /E /I /Y >nul
 if errorlevel 1 goto :error
-if exist ".streamlit" (
-  xcopy ".streamlit" "%DIST_DIR%\.streamlit\" /E /I /Y >nul
-  if errorlevel 1 goto :error
-)
 
 echo.
 echo Build complete.

@@ -6,10 +6,15 @@ from modelscope import snapshot_download
 from app.config import MODEL_ID, get_models_dir
 
 
+def expected_model_dir(models_dir: Path) -> Path:
+    # ModelScope 缓存目录形如 <cache_dir>/<命名空间>/<名称>，其中 "." 会被替换成 "___"
+    return models_dir / MODEL_ID.replace(".", "___")
+
+
 def find_model_dir(models_dir: Path) -> Path | None:
-    for config_file in models_dir.rglob("config.json"):
-        if (config_file.parent / "tokenizer_config.json").exists():
-            return config_file.parent
+    expected = expected_model_dir(models_dir)
+    if (expected / "config.json").exists() and (expected / "tokenizer_config.json").exists():
+        return expected
     return None
 
 
@@ -21,10 +26,9 @@ def ensure_model() -> Path:
     if existing:
         return existing
 
-    snapshot_download(MODEL_ID, cache_dir=str(models_dir))
-    resolved = find_model_dir(models_dir)
-    if not resolved:
-        raise FileNotFoundError(f"模型下载完成，但未找到可用目录: {models_dir}")
+    resolved = Path(snapshot_download(MODEL_ID, cache_dir=str(models_dir)))
+    if not (resolved / "config.json").exists():
+        raise FileNotFoundError(f"模型下载完成，但未找到可用目录: {resolved}")
     return resolved
 
 

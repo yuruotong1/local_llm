@@ -1,8 +1,8 @@
 import os
 from pathlib import Path
 
-MODEL_ID = "Qwen/Qwen3-1.7B"
-APP_MODEL_NAME = "local-qwen3-1.7b-cpu"
+MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"
+APP_MODEL_NAME = "local-qwen2.5-0.5b-cpu"
 DEFAULT_HOST = os.environ.get("LLM_API_HOST", "0.0.0.0")
 DEFAULT_PORT = int(os.environ.get("LLM_API_PORT", "8000"))
 

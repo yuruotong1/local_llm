@@ -2,6 +2,6 @@ modelscope
 torch
 transformers
 accelerate
-streamlit
+gradio
 fastapi
 uvicorn

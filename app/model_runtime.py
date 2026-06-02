@@ -1,9 +1,10 @@
 import re
 import time
 from functools import lru_cache
+from threading import Thread
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
 
 from app.config import APP_MODEL_NAME, MODEL_ID, resolve_device
 from download_model import ensure_model
@@ -19,6 +20,21 @@ def split_thinking_content(text: str) -> tuple[str | None, str]:
     thinking = match.group(1).strip() or None
     answer = THINK_PATTERN.sub("", text).strip()
     return thinking, answer
+
+
+def split_thinking_partial(text: str) -> tuple[str | None, str]:
+    """流式场景下解析可能未闭合的 <think> 块。
+
+    返回 (thinking, answer)。当 <think> 尚未闭合时，后续文本全部算作思考过程，
+    answer 为空字符串。
+    """
+    if "<think>" not in text:
+        return None, text.strip()
+    after = text.split("<think>", 1)[1]
+    if "</think>" in after:
+        thinking, answer = after.split("</think>", 1)
+        return thinking.strip() or None, answer.strip()
+    return after.strip() or None, ""
 
 
 @lru_cache(maxsize=1)
@@ -54,6 +70,7 @@ def generate_reply(
     started_at = time.time()
     generated_ids = model.generate(
         inputs.input_ids,
+        attention_mask=inputs.attention_mask,
         max_new_tokens=max_new_tokens,
         do_sample=temperature > 0,
         temperature=temperature,
@@ -78,6 +95,40 @@ def generate_reply(
         },
         "elapsed_seconds": round(elapsed, 3),
     }
+
+
+def stream_reply(
+    messages: list[dict[str, str]],
+    max_new_tokens: int = 512,
+    temperature: float = 0.7,
+    top_p: float = 0.9,
+):
+    """流式生成：逐步 yield 已累计的原始文本（含未闭合的 <think> 块）。"""
+    runtime = get_runtime()
+    model, tokenizer, device = runtime["model"], runtime["tokenizer"], runtime["device"]
+
+    text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = tokenizer([text], return_tensors="pt").to(device)
+
+    streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+    generation_kwargs = dict(
+        input_ids=inputs.input_ids,
+        attention_mask=inputs.attention_mask,
+        max_new_tokens=max_new_tokens,
+        do_sample=temperature > 0,
+        temperature=temperature,
+        top_p=top_p,
+        streamer=streamer,
+    )
+
+    thread = Thread(target=model.generate, kwargs=generation_kwargs)
+    thread.start()
+
+    accumulated = ""
+    for token in streamer:
+        accumulated += token
+        yield accumulated
+    thread.join()
 
 
 def get_runtime_info() -> dict:
