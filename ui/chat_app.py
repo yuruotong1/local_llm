@@ -106,12 +106,14 @@ def respond(message, history: list[dict]):
 def build_demo() -> gr.Blocks:
     info = get_runtime_info()
     with gr.Blocks(title="Qwen Chat UI", fill_height=True) as demo:
-        gr.Markdown(f"# Qwen Chat UI\n模型: {info['model']} | 设备: {info['device']}")
+        # 顶部压成一行，避免占用太多高度把输入框挤出可视区
+        gr.Markdown(f"#### 🤖 Qwen Chat UI · 模型 `{info['model']}` · 设备 `{info['device']}`")
         with gr.Accordion("📡 API 调用说明（OpenAI 兼容）", open=False):
             gr.Markdown(_api_usage_markdown(info["model"]))
         gr.ChatInterface(
             fn=respond,
-            chatbot=gr.Chatbot(height=600, resizable=True, autoscroll=True),
+            # 用视口比例高度，聊天区自适应，输入框始终留在可视区内
+            chatbot=gr.Chatbot(height="62vh", resizable=True, autoscroll=True),
             textbox=gr.Textbox(placeholder="请输入问题", scale=7),
         )
     return demo
