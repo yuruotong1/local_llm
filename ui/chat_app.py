@@ -49,6 +49,27 @@ for chunk in resp:
 """
 
 
+def _content_to_text(content) -> str:
+    """把 Gradio 各种形态的 content 统一成纯文本。
+
+    Gradio v6 的历史里，content 可能是 str、list（多段/多条消息）或 dict
+    （带 type/text 或 metadata 的结构）。直接丢给 apply_chat_template 会因为
+    str 拼 list 而报 TypeError，这里递归拍平成字符串。
+    """
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, dict):
+        # 思考过程等带 metadata 的块不计入上下文
+        if content.get("metadata"):
+            return ""
+        return _content_to_text(content.get("content") or content.get("text") or "")
+    if isinstance(content, (list, tuple)):
+        return "".join(_content_to_text(part) for part in content)
+    return str(content)
+
+
 def _to_model_messages(history: list[dict]) -> list[dict]:
     """把 Gradio 的对话历史转换成模型输入；跳过思考过程折叠块。"""
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
@@ -56,16 +77,16 @@ def _to_model_messages(history: list[dict]) -> list[dict]:
         # 思考过程块带 metadata（如 {"title": ...}），不计入上下文
         if item.get("metadata"):
             continue
-        content = item.get("content")
+        content = _content_to_text(item.get("content"))
         if not content:
             continue
         messages.append({"role": item["role"], "content": content})
     return messages
 
 
-def respond(message: str, history: list[dict]):
+def respond(message, history: list[dict]):
     messages = _to_model_messages(history)
-    messages.append({"role": "user", "content": message})
+    messages.append({"role": "user", "content": _content_to_text(message)})
 
     for raw in stream_reply(messages, max_new_tokens=512):
         thinking, answer = split_thinking_partial(raw)
